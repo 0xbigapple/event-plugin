@@ -2,8 +2,6 @@ package org.tron.eventplugin;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -43,7 +41,7 @@ public class KafkaSenderImpl implements AutoCloseable {
   private String solidityEventTopic = "";
 
   private Thread triggerProcessThread;
-  private boolean isRunTriggerProcessThread = true;
+  private volatile boolean isRunTriggerProcessThread = true;
 
   public static KafkaSenderImpl getInstance() {
     if (Objects.isNull(instance)) {
@@ -130,12 +128,6 @@ public class KafkaSenderImpl implements AutoCloseable {
     return producer;
   }
 
-  private void printTimestamp(String data) {
-    Date date = new Date();
-    SimpleDateFormat ft = new SimpleDateFormat("hh:mm:ss:SSS");
-    System.out.println(ft.format(date) + ": " + data);
-  }
-
   public void sendKafkaRecord(int eventType, String kafkaTopic, Object data) {
     KafkaProducer<String, String> producer = producerMap.get(eventType);
     if (Objects.isNull(producer)) {
@@ -153,8 +145,6 @@ public class KafkaSenderImpl implements AutoCloseable {
     } catch (Exception e) {
       log.error("sendKafkaRecord failed", e);
     }
-
-    printTimestamp((String) data);
   }
 
   public void handleBlockEvent(Object data) {
@@ -262,8 +252,6 @@ public class KafkaSenderImpl implements AutoCloseable {
             Thread.currentThread().interrupt();
           } catch (Exception ex) {
             log.error("unknown exception happened in process capsule loop", ex);
-          } catch (Throwable throwable) {
-            log.error("unknown throwable happened in process capsule loop", throwable);
           }
         }
       };

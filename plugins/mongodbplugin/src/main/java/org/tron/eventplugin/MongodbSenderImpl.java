@@ -42,7 +42,7 @@ public class MongodbSenderImpl implements AutoCloseable {
   private String solidityLogTopic = "";
 
   private Thread triggerProcessThread;
-  private boolean isRunTriggerProcessThread = true;
+  private volatile boolean isRunTriggerProcessThread = true;
 
   private MongoManager mongoManager;
   private Map<String, MongoTemplate> mongoTemplateMap;
@@ -467,8 +467,6 @@ public class MongodbSenderImpl implements AutoCloseable {
             Thread.currentThread().interrupt();
           } catch (Exception ex) {
             log.error("unknown exception happened in process capsule loop", ex);
-          } catch (Throwable throwable) {
-            log.error("unknown throwable happened in process capsule loop", throwable);
           }
         }
       };
