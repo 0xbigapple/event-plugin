@@ -12,10 +12,8 @@ import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.clients.producer.RecordMetadata;
 
 @Slf4j(topic = "event")
 public class KafkaSenderImpl implements AutoCloseable {
@@ -25,7 +23,7 @@ public class KafkaSenderImpl implements AutoCloseable {
 
   @Setter
   private String serverAddress = "";
-  private boolean loaded = false;
+  private volatile boolean loaded = false;
 
   private final Map<Integer, KafkaProducer<String, String>> producerMap = new HashMap<>();
 
@@ -113,7 +111,8 @@ public class KafkaSenderImpl implements AutoCloseable {
 
     Properties props = new Properties();
     props.put("acks", "all");
-    props.put("retries", 0);
+    props.put("retries", 3);
+    props.put("enable.idempotence", true);
     props.put("linger.ms", 1);
     props.put("bootstrap.servers", this.serverAddress);
     props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
@@ -136,14 +135,13 @@ public class KafkaSenderImpl implements AutoCloseable {
 
     ProducerRecord<String, String> record = new ProducerRecord(kafkaTopic, data);
     try {
-      producer.send(record, new Callback() {
-        @Override
-        public void onCompletion(RecordMetadata metadata, Exception exception) {
-          log.debug("sendKafkaRecord successfully");
+      producer.send(record, (metadata, exception) -> {
+        if (exception != null) {
+          log.error("Kafka send failed, topic={}, eventType={}", kafkaTopic, eventType, exception);
         }
       });
     } catch (Exception e) {
-      log.error("sendKafkaRecord failed", e);
+      log.error("sendKafkaRecord failed, topic={}, eventType={}", kafkaTopic, eventType, e);
     }
   }
 

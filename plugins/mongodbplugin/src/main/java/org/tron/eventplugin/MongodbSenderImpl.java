@@ -29,7 +29,7 @@ public class MongodbSenderImpl implements AutoCloseable {
   private final ExecutorService service = new ThreadPoolExecutor(8, 8,
       0L, TimeUnit.MILLISECONDS, queue);
 
-  private boolean loaded = false;
+  private volatile boolean loaded = false;
   @Getter
   private BlockingQueue<Object> triggerQueue = new LinkedBlockingQueue<>();
 
@@ -195,19 +195,33 @@ public class MongodbSenderImpl implements AutoCloseable {
       }
       properties.load(input);
 
-      int connectionsPerHost = Integer.parseInt(properties.getProperty("mongo.connectionsPerHost"));
-      int threadsAllowedToBlockForConnectionMultiplie = Integer.parseInt(
-          properties.getProperty("mongo.threadsAllowedToBlockForConnectionMultiplier"));
-
       mongoConfig.setDbName(dbName);
       mongoConfig.setUsername(dbUserName);
       mongoConfig.setPassword(dbPassword);
       mongoConfig.setVersion(version);
-      mongoConfig.setConnectionsPerHost(connectionsPerHost);
+      mongoConfig.setConnectionsPerHost(
+          getIntProperty(properties, "mongo.connectionsPerHost", mongoConfig.getConnectionsPerHost()));
       mongoConfig.setThreadsAllowedToBlockForConnectionMultiplier(
-          threadsAllowedToBlockForConnectionMultiplie);
+          getIntProperty(properties, "mongo.threadsAllowedToBlockForConnectionMultiplier",
+              mongoConfig.getThreadsAllowedToBlockForConnectionMultiplier()));
+      mongoConfig.setServerSelectionTimeoutMs(
+          getIntProperty(properties, "mongo.serverSelectionTimeoutMs",
+              mongoConfig.getServerSelectionTimeoutMs()));
     } catch (Exception e) {
       log.error("LoadMongoConfig failed", e);
+    }
+  }
+
+  private int getIntProperty(Properties props, String key, int defaultValue) {
+    String value = props.getProperty(key);
+    if (value == null || value.trim().isEmpty()) {
+      return defaultValue;
+    }
+    try {
+      return Integer.parseInt(value.trim());
+    } catch (NumberFormatException e) {
+      log.warn("Invalid {}='{}', falling back to default {}", key, value, defaultValue);
+      return defaultValue;
     }
   }
 
@@ -279,7 +293,7 @@ public class MongodbSenderImpl implements AutoCloseable {
         template.addEntity(dataStr);
       }
     } catch (Exception ex) {
-      log.error("upsertEntityLong exception happened in parse object ", ex);
+      log.error("upsertEntityLong failed, indexKey={}, data dropped", indexKey, ex);
     }
   }
 
@@ -294,7 +308,7 @@ public class MongodbSenderImpl implements AutoCloseable {
         template.addEntity(dataStr);
       }
     } catch (Exception ex) {
-      log.error("upsertEntityLong exception happened in parse object ", ex);
+      log.error("upsertEntityString failed, indexKey={}, data dropped", indexKey, ex);
     }
   }
 

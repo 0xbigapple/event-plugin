@@ -35,6 +35,9 @@ public class MongoManager implements Closeable {
     MongoClientOptions options = MongoClientOptions.builder().connectionsPerHost(connectionsPerHost)
         .threadsAllowedToBlockForConnectionMultiplier(threadsAllowedToBlockForConnectionMultiplier)
         .writeConcern(WriteConcern.JOURNALED)
+        // retryWrites only takes effect on replica set / sharded cluster; no-op on standalone
+        .retryWrites(true)
+        .serverSelectionTimeout(config.getServerSelectionTimeoutMs())
         .build();
 
     String host = config.getHost();

@@ -15,6 +15,7 @@ public class MongoConfig {
   private int version;
   private int connectionsPerHost = 10;
   private int threadsAllowedToBlockForConnectionMultiplier = 10;
+  private int serverSelectionTimeoutMs = 30000;
 
   public boolean enabledIndexes() {
     return version == 2;
